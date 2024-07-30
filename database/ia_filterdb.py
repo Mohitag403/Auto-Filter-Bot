@@ -18,7 +18,11 @@ class Media(Document):
     file_id = fields.StrField(attribute='_id')
     file_name = fields.StrField(required=True)
     file_size = fields.IntField(required=True)
-    caption = fields.StrField(allow_none=True)
+    faculty = fields.StrField(allow_none=True)
+    batch = fields.StrField(allow_none=True)
+    sub = fields.StrField(allow_none=True)
+    topic = fields.StrField(allow_none=True)
+    date = fields.DateTimeField(allow_none=True)
 
     class Meta:
         indexes = ('$file_name', )
@@ -30,13 +34,18 @@ async def save_file(media):
     # TODO: Find better way to get same file_id for same media to avoid duplicates
     file_id = unpack_new_file_id(media.file_id)
     file_name = re.sub(r"@\w+|(_|\-|\.|\+)", " ", str(media.file_name))
-    file_caption = re.sub(r"@\w+|(_|\-|\.|\+)", " ", str(media.caption))
+    c = json.loads(media.caption)
+    date = datetime.strptime(media.date, "%d-%m-%Y") if c['date'] else None
     try:
         file = Media(
             file_id=file_id,
             file_name=file_name,
             file_size=media.file_size,
-            caption=file_caption
+            faculty=c['faculty'],
+            batch=c['batch'],
+            sub=c['sub'],
+            topic=c['topic'],
+            date=date
         )
     except ValidationError:
         print(f'Saving Error - {file_name}')
@@ -51,44 +60,28 @@ async def save_file(media):
             print(f'Saved - {file_name}')
             return 'suc'
 
-async def get_search_results(query, max_results=MAX_BTN, offset=0, lang=None):
-    query = str(query) # to ensure the query is string to stripe.
-    query = query.strip()
-    if not query:
-        raw_pattern = '.'
-    elif ' ' not in query:
-        raw_pattern = r'(\b|[\.\+\-_])' + query + r'(\b|[\.\+\-_])'
-    else:
-        raw_pattern = query.replace(' ', r'.*[\s\.\+\-_]') 
+async def get_files(batch=None, sub=None, topic=None, faculty=None):
+    query = {}
+    
+    if batch:
+        query['batch'] = {'$regex': re.compile(batch, re.IGNORECASE)}
+    
+    if sub:
+        query['sub'] = {'$regex': re.compile(sub, re.IGNORECASE)}
+    
+    if topic:
+        query['topic'] = {'$regex': re.compile(topic, re.IGNORECASE)}
+    
+    if faculty:
+        query['faculty'] = {'$regex': re.compile(faculty, re.IGNORECASE)}
+    
     try:
-        regex = re.compile(raw_pattern, flags=re.IGNORECASE)
-    except:
-        regex = query
-
-    filter = {'file_name': regex}
-    cursor = Media.find(filter)
-
-    # Sort by recent
-    cursor.sort('$natural', -1)
-
-    if lang:
-        lang_files = [file async for file in cursor if lang in file.file_name.lower()]
-        files = lang_files[offset:][:max_results]
-        total_results = len(lang_files)
-        next_offset = offset + max_results
-        if next_offset >= total_results:
-            next_offset = ''
-        return files, next_offset, total_results
-        
-    # Slice files according to offset and max results
-    cursor.skip(offset).limit(max_results)
-    # Get list of files
-    files = await cursor.to_list(length=max_results)
-    total_results = await Media.count_documents(filter)
-    next_offset = offset + max_results
-    if next_offset >= total_results:
-        next_offset = ''       
-    return files, next_offset, total_results
+        files = await Media.find(query).sort('date', 1).to_list(length=100)
+    except PyMongoError as e:
+        print(f"Error occurred while fetching files: {e}")
+        return []
+    
+    return files
     
 async def delete_files(query):
     query = query.strip()
