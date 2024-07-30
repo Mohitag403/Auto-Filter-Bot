@@ -64,14 +64,6 @@ if len(DATABASE_URL) == 0:
 DATABASE_NAME = environ.get('DATABASE_NAME', "Lectures")
 COLLECTION_NAME = environ.get('COLLECTION_NAME', 'Files')
 
-# Links
-SUPPORT_LINK = environ.get('SUPPORT_LINK', 'https://t.me/HA_Bots_Support')
-OWNER_USERNAME = environ.get("OWNER_USERNAME", "https://t.me/Hansaka_Anuhas")
-UPDATES_LINK = environ.get('UPDATES_LINK', 'https://t.me/HA_Bots')
-FILMS_LINK = environ.get('FILMS_LINK', 'https://t.me/HA_Films_World')
-TUTORIAL = environ.get("TUTORIAL", "https://t.me/HA_Bots")
-VERIFY_TUTORIAL = environ.get("VERIFY_TUTORIAL", "https://t.me/HA_Bots")
-
 # Bot settings
 DELETE_TIME = int(environ.get('DELETE_TIME', 3600)) # Add time in seconds
 CACHE_TIME = int(environ.get('CACHE_TIME', 300))
